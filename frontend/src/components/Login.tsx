@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import axios from 'axios';
+import { setAuth } from '../store/authSlice';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -7,48 +11,37 @@ const Login = () => {
     rememberMe: false
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleSubmit = async () => {
     setError('');
     
-    // Basic validation
     if (!formData.email || !formData.password) {
       setError('Please fill in all fields');
       return;
     }
 
     setLoading(true);
-
     try {
-      // Demo backend URL - replace with your actual API endpoint
-      const response = await fetch('https://api.example.com/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          rememberMe: formData.rememberMe
-        })
+      const response = await axios.post('http://localhost:9000/api/auth/login', {
+        email: formData.email,
+        password: formData.password
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log('Login successful:', data);
-        // Store token and redirect to dashboard
-        // localStorage.setItem('token', data.token);
-        // window.location.href = '/dashboard';
-        alert('Login successful! (Demo mode)');
+      
+      const { token, user } = response.data.data;
+      
+      if (token && user) {
+        dispatch(setAuth({ token, user }));
+        navigate('/');
       } else {
-        setError(data.message || 'Invalid email or password');
+        setError('Invalid response from server');
       }
-    } catch (err) {
-      setError('Network error. Please check your connection and try again.');
+    } catch (err: any) {
       console.error('Login error:', err);
+      setError(err.response?.data?.error || 'Invalid email or password');
     } finally {
       setLoading(false);
     }

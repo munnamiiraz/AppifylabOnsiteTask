@@ -15,9 +15,11 @@ export const api = createApi({
     // Auth
     register: builder.mutation({
       query: (data) => ({ url: '/auth/register', method: 'POST', body: data }),
+      transformResponse: (response: any) => response.data || response,
     }),
     login: builder.mutation({
       query: (data) => ({ url: '/auth/login', method: 'POST', body: data }),
+      transformResponse: (response: any) => response.data || response,
       invalidatesTags: ['Auth'],
     }),
 

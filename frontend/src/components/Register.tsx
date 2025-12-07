@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -11,14 +13,14 @@ const Register = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async () => {
     setError('');
     
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match!');
       return;
@@ -35,35 +37,16 @@ const Register = () => {
     }
 
     setLoading(true);
-
     try {
-      // Demo backend URL - replace with your actual API endpoint
-      const response = await fetch('https://api.example.com/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: formData.fullName,
-          email: formData.email,
-          password: formData.password,
-          companyName: formData.companyName
-        })
+      await axios.post('http://localhost:9000/api/auth/register', {
+        name: formData.fullName,
+        email: formData.email,
+        password: formData.password
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(true);
-        console.log('Registration successful:', data);
-        // Redirect to login or dashboard after successful registration
-        // window.location.href = '/login';
-      } else {
-        setError(data.message || 'Registration failed. Please try again.');
-      }
-    } catch (err) {
-      setError('Network error. Please check your connection and try again.');
-      console.error('Registration error:', err);
+      setSuccess(true);
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed. Email might already exist.');
     } finally {
       setLoading(false);
     }
