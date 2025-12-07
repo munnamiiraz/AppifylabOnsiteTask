@@ -41,7 +41,8 @@ const Register = () => {
       await axios.post('http://localhost:9000/api/auth/register', {
         name: formData.fullName,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        companyName: formData.companyName
       });
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);

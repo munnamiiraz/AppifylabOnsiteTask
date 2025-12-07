@@ -69,6 +69,10 @@ export class NoteService {
   }
 
   static async listPrivate(query: any, userId: string) {
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 15;
+    const skip = (page - 1) * limit;
+
     return prisma.note.findMany({
       where: {
         workspace: { company: { users: { some: { userId } } } },
@@ -81,11 +85,16 @@ export class NoteService {
         _count: { select: { votes: true } },
       },
       orderBy: { updatedAt: 'desc' },
+      skip,
+      take: limit,
     });
   }
 
   static async listPublic(query: any) {
     const sort = query.sort || 'new';
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 15;
+    const skip = (page - 1) * limit;
     const orderBy: any = sort === 'old' ? { createdAt: 'asc' } : { createdAt: 'desc' };
 
     const notes = await prisma.note.findMany({
@@ -100,6 +109,8 @@ export class NoteService {
         votes: true,
       },
       orderBy,
+      skip,
+      take: limit,
     });
 
     let sortedNotes = notes;

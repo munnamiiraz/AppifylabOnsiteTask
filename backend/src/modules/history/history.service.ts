@@ -1,16 +1,22 @@
 import prisma from '../../config/database';
 
 export class HistoryService {
-  static async list(noteId: string, userId: string) {
+  static async list(noteId: string, userId: string, query: any = {}) {
     const note = await prisma.note.findFirst({
       where: { id: noteId, workspace: { company: { users: { some: { userId } } } } },
     });
     if (!note) throw new Error('Access denied');
 
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 15;
+    const skip = (page - 1) * limit;
+
     return prisma.noteHistory.findMany({
       where: { noteId },
       include: { user: { select: { name: true, email: true } } },
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
   }
 

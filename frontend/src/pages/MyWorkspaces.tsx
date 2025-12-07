@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import api from '../utils/api';
 import { Workspace } from '../types';
 import CreateWorkspace from '../components/CreateWorkspace';
@@ -10,11 +11,14 @@ const MyWorkspaces: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAllCompanies, setShowAllCompanies] = useState(false);
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
+  const selectedCompanyId = useSelector((state: any) => state.auth.selectedCompanyId);
 
   useEffect(() => {
     fetchWorkspaces();
-  }, []);
+  }, [selectedCompanyId, showAllCompanies, page]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -32,7 +36,14 @@ const MyWorkspaces: React.FC = () => {
   const fetchWorkspaces = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/workspaces');
+      const params = new URLSearchParams();
+      if (!showAllCompanies && selectedCompanyId) {
+        params.append('companyId', selectedCompanyId);
+      }
+      params.append('page', page.toString());
+      params.append('limit', '15');
+      
+      const { data } = await api.get(`/workspaces?${params.toString()}`);
       setWorkspaces(data.data || []);
     } catch (error) {
       console.error('Error fetching workspaces:', error);
@@ -61,17 +72,35 @@ const MyWorkspaces: React.FC = () => {
             </button>
           </div>
 
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search workspaces..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            />
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search workspaces..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              />
+            </div>
+            <button
+              onClick={() => navigate('/my-notes')}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors whitespace-nowrap"
+            >
+              My Notes
+            </button>
+            <button
+              onClick={() => setShowAllCompanies(!showAllCompanies)}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                showAllCompanies
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {showAllCompanies ? 'Current Company' : 'All Companies'}
+            </button>
           </div>
         </div>
 
@@ -127,6 +156,26 @@ const MyWorkspaces: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {filteredWorkspaces.length > 0 && (
+          <div className="mt-6 flex justify-center items-center space-x-4">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Previous
+            </button>
+            <span className="text-gray-700 font-medium">Page {page}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={workspaces.length < 15}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Next
+            </button>
           </div>
         )}
       </main>

@@ -1,186 +1,344 @@
 # Database Design - SaaS Notes System
 
-## Visual Database Schema
+## Entity Relationship Diagram
 
 ```
-┌─────────────┐
-│    User     │
-│─────────────│
-│ id (PK)     │
-│ email       │◄─────────┐
-│ password    │          │
-│ name        │          │
-└─────────────┘          │
-       │                 │
-       │ 1               │ M
-       │                 │
-       ▼ M               │
-┌─────────────┐          │
-│ UserCompany │          │
-│─────────────│          │
-│ id (PK)     │          │
-│ userId (FK) │──────────┘
-│ companyId   │──────┐
-│ role        │      │
-└─────────────┘      │
-       │ M           │
-       │             │ 1
-       ▼             ▼
-┌─────────────┐
-│   Company   │
-│─────────────│
-│ id (PK)     │
-│ name        │
-└─────────────┘
-       │ 1
-       │
-       ▼ M
-┌─────────────┐
-│  Workspace  │
-│─────────────│
-│ id (PK)     │
-│ name        │
-│ companyId   │
-└─────────────┘
-       │ 1
-       │
-       ▼ M
-┌─────────────┐
-│    Note     │
-│─────────────│
-│ id (PK)     │
-│ title       │
-│ content     │
-│ type        │ (PUBLIC/PRIVATE)
-│ isDraft     │
-│ workspaceId │
-│ publishedAt │
-└─────────────┘
-   │    │    │
-   │    │    └──────────┐
-   │    │               │
-   │ 1  │ 1             │ 1
-   │    │               │
-   ▼ M  ▼ M             ▼ M
-┌──────┐ ┌──────┐  ┌──────────┐
-│NoteTag│ │ Vote │  │NoteHistory│
-└──────┘ └──────┘  └──────────┘
-   │ M      │           │
-   │        │           │
-   ▼ 1     │           ▼ M
-┌──────┐   │        ┌──────┐
-│ Tag  │   │        │ User │
-└──────┘   │        └──────┘
-           │
-           └─ userId/ipAddress
+┌─────────────────┐
+│      User       │
+├─────────────────┤
+│ id (PK)         │
+│ email (unique)  │
+│ password        │
+│ name            │
+│ createdAt       │
+└────────┬────────┘
+         │
+         │ 1:N
+         │
+┌────────▼────────┐
+│  UserCompany    │  (Junction Table)
+├─────────────────┤
+│ id (PK)         │
+│ userId (FK)     │───────┐
+│ companyId (FK)  │       │
+│ createdAt       │       │
+└─────────────────┘       │
+                          │
+         ┌────────────────┘
+         │
+         │ N:1
+         │
+┌────────▼────────┐
+│    Company      │
+├─────────────────┤
+│ id (PK)         │
+│ name            │
+│ createdAt       │
+└────────┬────────┘
+         │
+         │ 1:N
+         │
+┌────────▼────────┐
+│   Workspace     │
+├─────────────────┤
+│ id (PK)         │
+│ name            │
+│ companyId (FK)  │
+│ createdAt       │
+└────────┬────────┘
+         │
+         │ 1:N
+         │
+┌────────▼────────┐
+│      Note       │
+├─────────────────┤
+│ id (PK)         │
+│ title           │
+│ content         │
+│ type            │ (PUBLIC/PRIVATE)
+│ isDraft         │
+│ workspaceId(FK) │
+│ publishedAt     │
+│ createdAt       │
+│ updatedAt       │
+└────┬────┬───────┘
+     │    │
+     │    │ 1:N
+     │    │
+     │    ├──────────────┐
+     │    │              │
+     │    │         ┌────▼────────┐
+     │    │         │    Vote     │
+     │    │         ├─────────────┤
+     │    │         │ id (PK)     │
+     │    │         │ noteId (FK) │
+     │    │         │ userId (FK) │
+     │    │         │ ipAddress   │
+     │    │         │ voteType    │ (UPVOTE/DOWNVOTE)
+     │    │         │ createdAt   │
+     │    │         └─────────────┘
+     │    │
+     │    │ 1:N
+     │    │
+     │    └──────────────┐
+     │                   │
+     │              ┌────▼────────────┐
+     │              │  NoteHistory    │
+     │              ├─────────────────┤
+     │              │ id (PK)         │
+     │              │ noteId (FK)     │
+     │              │ title           │
+     │              │ content         │
+     │              │ userId (FK)     │
+     │              │ createdAt       │
+     │              └─────────────────┘
+     │
+     │ N:M (via NoteTag)
+     │
+     ├──────────────┐
+     │              │
+┌────▼────────┐ ┌──▼──────────┐
+│   NoteTag   │ │     Tag     │
+├─────────────┤ ├─────────────┤
+│ id (PK)     │ │ id (PK)     │
+│ noteId (FK) │ │ name(unique)│
+│ tagId (FK)  │ │ createdAt   │
+└─────────────┘ └─────────────┘
 ```
+
+## Table Descriptions
+
+### User
+Stores user authentication and profile information.
+- **Primary Key**: `id` (UUID)
+- **Unique Constraint**: `email`
+- **Indexes**: `email`
+
+### Company
+Represents a company/organization in the multi-tenant system.
+- **Primary Key**: `id` (UUID)
+- **Relationships**: Has many Users (via UserCompany), Has many Workspaces
+
+### UserCompany (Junction Table)
+Links users to companies (many-to-many relationship).
+- **Primary Key**: `id` (UUID)
+- **Foreign Keys**: `userId`, `companyId`
+- **Unique Constraint**: `(userId, companyId)`
+- **Purpose**: Allows users to belong to multiple companies
+
+### Workspace
+Organizational unit within a company for grouping notes.
+- **Primary Key**: `id` (UUID)
+- **Foreign Key**: `companyId`
+- **Indexes**: `companyId`
+- **Relationships**: Belongs to Company, Has many Notes
+
+### Note
+Core entity storing note content and metadata.
+- **Primary Key**: `id` (UUID)
+- **Foreign Key**: `workspaceId`
+- **Indexes**: 
+  - `workspaceId`
+  - `type`
+  - `isDraft`
+  - `title` (for search)
+  - `createdAt`, `updatedAt`
+- **Enums**: 
+  - `type`: PUBLIC, PRIVATE
+- **Relationships**: 
+  - Belongs to Workspace
+  - Has many Tags (via NoteTag)
+  - Has many Votes
+  - Has many History entries
+
+### Tag
+Reusable labels for categorizing notes.
+- **Primary Key**: `id` (UUID)
+- **Unique Constraint**: `name`
+- **Relationships**: Has many Notes (via NoteTag)
+
+### NoteTag (Junction Table)
+Links notes to tags (many-to-many relationship).
+- **Primary Key**: `id` (UUID)
+- **Foreign Keys**: `noteId`, `tagId`
+- **Unique Constraint**: `(noteId, tagId)`
+- **Indexes**: `noteId`, `tagId`
+
+### Vote
+Stores upvotes/downvotes for public notes.
+- **Primary Key**: `id` (UUID)
+- **Foreign Keys**: `noteId`, `userId` (optional)
+- **Unique Constraint**: `(noteId, userId)` OR `(noteId, ipAddress)`
+- **Enums**: `voteType`: UPVOTE, DOWNVOTE
+- **Indexes**: `noteId`
+- **Purpose**: Allows one vote per user/IP per note
+
+### NoteHistory
+Stores historical versions of notes (7-day retention).
+- **Primary Key**: `id` (UUID)
+- **Foreign Keys**: `noteId`, `userId`
+- **Indexes**: 
+  - `noteId`
+  - `createdAt` (for cleanup queries)
+- **Retention**: Automatically deleted after 7 days via pg_cron
 
 ## Key Design Decisions
 
-### 1. Multi-Tenancy (User → Company Relationship)
-- **UserCompany** junction table allows one user to belong to multiple companies
-- Each company is isolated with its own workspaces and notes
-- Role-based access control (owner, admin, member)
+### 1. Multi-Tenancy
+- **Pattern**: Shared database with tenant isolation via `companyId`
+- **Benefits**: Cost-effective, easier maintenance
+- **Security**: All queries filtered by company ownership
 
-### 2. Hierarchical Structure
-```
-Company → Workspace → Note
-```
-- Clean separation of concerns
-- Easy to scale and manage permissions
-- Workspace provides organizational grouping
+### 2. Many-to-Many Relationships
+- **UserCompany**: Users can belong to multiple companies
+- **NoteTag**: Notes can have multiple tags, tags can be on multiple notes
+- **Implementation**: Explicit junction tables with composite unique constraints
 
-### 3. Note Features
-- **type**: PUBLIC (visible in directory) or PRIVATE (owner only)
-- **isDraft**: Draft mode for incomplete work
-- **publishedAt**: Tracks when note became public
+### 3. Voting System
+- **Constraint**: One vote per user/IP per note
+- **Implementation**: Unique constraint on `(noteId, userId)` or `(noteId, ipAddress)`
+- **Guest Support**: Uses IP address for non-authenticated users
 
-### 4. Tagging System
-- **Tag** table stores unique tags
-- **NoteTag** junction table for many-to-many relationship
-- Reusable tags across all notes
+### 4. History Retention
+- **Strategy**: Automatic cleanup via PostgreSQL pg_cron
+- **Retention**: 7 days
+- **Performance**: Indexed `createdAt` for efficient deletion
+- **Offloading**: Runs in database, not application server
 
-### 5. Voting System
-- **Vote** table with UPVOTE/DOWNVOTE enum
-- Unique constraint on (noteId + userId) OR (noteId + ipAddress)
-- Prevents duplicate votes from same user/IP
+### 5. Performance Optimizations
+- **Indexes**: All foreign keys, search fields, and sort fields
+- **Composite Indexes**: Common query patterns (e.g., `type + isDraft`)
+- **Selective Loading**: Only fetch required fields
+- **Batch Operations**: Seeder uses batch inserts (1,000 records/batch)
 
-### 6. History System (7-Day Retention)
-- **NoteHistory** stores previous versions
-- Automatically created on every note update
-- Indexed on `createdAt` for efficient cleanup
-- Stores userId to track who made changes
+## Scalability Considerations
 
-## Performance Optimizations
+### Current Capacity
+- ✅ 500,000+ notes
+- ✅ 1,000+ workspaces
+- ✅ Sub-second query times
 
-### Indexes
-```prisma
-// Fast lookups
-@@index([email])           // User login
-@@index([companyId])       // Company queries
-@@index([workspaceId])     // Workspace notes
-@@index([type, isDraft])   // Public note filtering
-@@index([title])           // Search by title
-@@index([createdAt])       // Sorting by date
-@@index([noteId])          // History/votes lookup
-```
+### Growth Strategy
+1. **Horizontal Scaling**: Stateless API, add more servers
+2. **Database Partitioning**: Partition by `companyId` or date
+3. **Read Replicas**: Separate read/write databases
+4. **Caching**: Redis for hot data (workspace lists, user sessions)
+5. **Archiving**: Move old notes to cold storage
 
-### Unique Constraints
-```prisma
-@@unique([userId, companyId])  // One role per user per company
-@@unique([noteId, tagId])      // No duplicate tags
-@@unique([noteId, userId])     // One vote per user per note
+### Example Partitioning
+```sql
+-- Partition notes by company
+CREATE TABLE notes_company_1 PARTITION OF notes
+FOR VALUES IN ('company-1-uuid');
+
+-- Partition history by date
+CREATE TABLE note_history_2024_01 PARTITION OF note_history
+FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 ```
 
-## Scalability Features
+## Security Features
 
-1. **Indexed Foreign Keys** - All FK columns have indexes
-2. **Composite Indexes** - Multi-column indexes for common queries
-3. **Cascade Deletes** - Automatic cleanup of related records
-4. **Partition Ready** - Can partition by company or date range
-5. **Connection Pooling** - Prisma handles connection management
+### 1. Access Control
+- All queries filtered by company ownership
+- Workspace access validated via company membership
+- Private notes only visible to company members
 
-## Security
+### 2. Data Isolation
+- Multi-tenant isolation via `companyId`
+- No cross-company data leakage
+- Workspace-level permissions
 
-1. **Cascade Deletes** - No orphaned records
-2. **Access Control** - Company membership checked on all operations
-3. **Type Safety** - Prisma ensures data integrity
-4. **Enum Types** - Prevents invalid values (NoteType, VoteType)
+### 3. SQL Injection Prevention
+- Prisma ORM with parameterized queries
+- Type-safe query building
+- No raw SQL in application code
 
 ## Query Patterns
 
-### Most Common Queries (Optimized)
+### Most Common Queries
+1. **List Private Notes**: `WHERE workspace.company.users.userId = ? AND type = PRIVATE`
+2. **List Public Notes**: `WHERE type = PUBLIC AND isDraft = false ORDER BY createdAt DESC`
+3. **Search Notes**: `WHERE title ILIKE ? AND ...`
+4. **Vote Count**: `SELECT COUNT(*) FROM votes WHERE noteId = ? AND voteType = ?`
+5. **History Cleanup**: `DELETE FROM note_history WHERE createdAt < NOW() - INTERVAL '7 days'`
+
+### Optimized Indexes
 ```sql
--- Get user's notes (indexed: workspaceId, userId via company)
-SELECT * FROM Note WHERE workspaceId IN (user's workspaces)
+-- Composite index for public notes listing
+CREATE INDEX idx_notes_public ON notes(type, isDraft, createdAt DESC);
 
--- Public notes directory (indexed: type, isDraft, createdAt)
-SELECT * FROM Note WHERE type='PUBLIC' AND isDraft=false ORDER BY createdAt
+-- Search index
+CREATE INDEX idx_notes_title_search ON notes USING gin(to_tsvector('english', title));
 
--- Search notes (indexed: title)
-SELECT * FROM Note WHERE title ILIKE '%search%'
+-- History cleanup index
+CREATE INDEX idx_history_cleanup ON note_history(createdAt);
 
--- Note history (indexed: noteId, createdAt)
-SELECT * FROM NoteHistory WHERE noteId=? ORDER BY createdAt DESC
-
--- Delete old history (indexed: createdAt)
-DELETE FROM NoteHistory WHERE createdAt < NOW() - INTERVAL '7 days'
+-- Vote aggregation index
+CREATE INDEX idx_votes_note_type ON votes(noteId, voteType);
 ```
 
-## Database Size Estimation
+## Monitoring Queries
 
-With 500,000 notes:
-- **Note**: ~500K rows × 1KB = 500MB
-- **NoteHistory**: ~2M rows × 1KB = 2GB (assuming 4 edits per note)
-- **NoteTag**: ~1M rows × 50B = 50MB
-- **Vote**: ~500K rows × 100B = 50MB
-- **Total**: ~3GB (manageable for PostgreSQL)
+```sql
+-- Check table sizes
+SELECT 
+  schemaname,
+  tablename,
+  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables 
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 
-## Diagram Link
+-- Check index usage
+SELECT 
+  schemaname,
+  tablename,
+  indexname,
+  idx_scan,
+  idx_tup_read,
+  idx_tup_fetch
+FROM pg_stat_user_indexes
+ORDER BY idx_scan DESC;
 
-You can visualize this schema using:
-- **Prisma Studio**: `npm run prisma:studio` (interactive GUI)
-- **dbdiagram.io**: Copy schema to create visual diagram
-- **DBeaver/pgAdmin**: Connect to database for ER diagram
+-- Check slow queries
+SELECT 
+  query,
+  calls,
+  total_time,
+  mean_time,
+  max_time
+FROM pg_stat_statements
+ORDER BY mean_time DESC
+LIMIT 10;
+```
 
-This design handles millions of records efficiently with proper indexing and partitioning strategies.
+## Backup Strategy
+
+### Daily Backups
+```bash
+# Full database backup
+pg_dump -h localhost -U postgres -d notes_db > backup_$(date +%Y%m%d).sql
+
+# Compressed backup
+pg_dump -h localhost -U postgres -d notes_db | gzip > backup_$(date +%Y%m%d).sql.gz
+```
+
+### Point-in-Time Recovery
+- Enable WAL archiving
+- Retain 30 days of WAL files
+- Test restore procedures monthly
+
+## Migration Strategy
+
+### Schema Changes
+1. Create migration: `npx prisma migrate dev --name description`
+2. Review generated SQL
+3. Test on staging
+4. Deploy to production during low-traffic window
+5. Monitor performance post-deployment
+
+### Data Migrations
+- Use batch processing for large updates
+- Run during maintenance windows
+- Implement rollback procedures
+- Monitor database load

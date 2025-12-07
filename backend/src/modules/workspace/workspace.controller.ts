@@ -26,7 +26,7 @@ export class WorkspaceController {
 
   static async list(req: AuthRequest, res: Response) {
     try {
-      const workspaces = await WorkspaceService.list(req.query.companyId as string, req.userId!);
+      const workspaces = await WorkspaceService.list(req.query, req.userId!);
       res.status(200).json({
         success: true,
         status: 200,

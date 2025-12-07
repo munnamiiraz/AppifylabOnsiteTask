@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { logout } from '../store/slices/authSlice';
+import CompanySwitcher from './CompanySwitcher';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,7 +57,8 @@ const Navbar = () => {
             </button>
           </div>
 
-          <div className="hidden md:flex md:items-center">
+          <div className="hidden md:flex md:items-center md:space-x-4">
+            <CompanySwitcher />
             <div className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}

@@ -11,11 +11,12 @@ const PublicNotesDirectory: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('new');
   const [loading, setLoading] = useState(false);
   const [votingNoteId, setVotingNoteId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchNotes();
-  }, [sortBy, searchQuery]);
+  }, [sortBy, searchQuery, page]);
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -23,6 +24,8 @@ const PublicNotesDirectory: React.FC = () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
       if (sortBy) params.append('sort', sortBy);
+      params.append('page', page.toString());
+      params.append('limit', '15');
       
       const { data } = await api.get(`/notes/public?${params.toString()}`);
       setNotes(data.data || []);
@@ -92,7 +95,7 @@ const PublicNotesDirectory: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-600">Found {notes.length} note{notes.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-gray-600">Page {page} - Showing {notes.length} note{notes.length !== 1 ? 's' : ''}</p>
             <button onClick={fetchNotes} className="text-sm text-blue-600 hover:text-blue-700 font-medium">Refresh</button>
           </div>
         </div>
@@ -178,6 +181,26 @@ const PublicNotesDirectory: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {notes.length > 0 && (
+          <div className="mt-6 flex justify-center items-center space-x-4">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Previous
+            </button>
+            <span className="text-gray-700 font-medium">Page {page}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={notes.length < 15}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Next
+            </button>
           </div>
         )}
       </main>

@@ -9,13 +9,22 @@ const PrivateWorkspace: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+  const [filterType, setFilterType] = useState<'all' | 'draft' | 'public' | 'private'>('all');
+  const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const workspaceId = searchParams.get('workspaceId');
 
   useEffect(() => {
     fetchNotes();
-  }, [searchQuery, workspaceId]);
+  }, [searchQuery, workspaceId, filterType, page]);
+
+  const filteredNotes = notes.filter(note => {
+    if (filterType === 'draft') return note.isDraft;
+    if (filterType === 'public') return note.type === 'PUBLIC' && !note.isDraft;
+    if (filterType === 'private') return note.type === 'PRIVATE' && !note.isDraft;
+    return true;
+  });
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -23,6 +32,8 @@ const PrivateWorkspace: React.FC = () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
       if (workspaceId) params.append('workspaceId', workspaceId);
+      params.append('page', page.toString());
+      params.append('limit', '15');
       
       const { data } = await api.get(`/notes/private?${params.toString()}`);
       setNotes(data.data || []);
@@ -70,20 +81,32 @@ const PrivateWorkspace: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="relative mb-4">
-            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="relative md:col-span-2">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as any)}
+              className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white cursor-pointer"
+            >
+              <option value="all">All Notes</option>
+              <option value="draft">Drafts Only</option>
+              <option value="public">Public Only</option>
+              <option value="private">Private Only</option>
+            </select>
           </div>
           <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-600">Found {notes.length} note{notes.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-gray-600">Page {page} - Showing {filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''}</p>
             <button onClick={fetchNotes} className="text-sm text-blue-600 hover:text-blue-700 font-medium">Refresh</button>
           </div>
         </div>
@@ -93,7 +116,7 @@ const PrivateWorkspace: React.FC = () => {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600">Loading notes...</p>
           </div>
-        ) : notes.length === 0 ? (
+        ) : filteredNotes.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -106,7 +129,7 @@ const PrivateWorkspace: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {notes.map(note => (
+            {filteredNotes.map(note => (
               <div key={note.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -147,6 +170,26 @@ const PrivateWorkspace: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {filteredNotes.length > 0 && (
+          <div className="mt-6 flex justify-center items-center space-x-4">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Previous
+            </button>
+            <span className="text-gray-700 font-medium">Page {page}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={notes.length < 15}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Next
+            </button>
           </div>
         )}
       </main>

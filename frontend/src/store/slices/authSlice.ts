@@ -8,6 +8,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  selectedCompanyId: string | null;
 }
 
 const initialState: AuthState = {
@@ -15,6 +16,7 @@ const initialState: AuthState = {
   token: localStorage.getItem('token'),
   isLoading: false,
   isAuthenticated: !!localStorage.getItem('token'),
+  selectedCompanyId: localStorage.getItem('selectedCompanyId'),
 };
 
 const authSlice = createSlice({
@@ -32,8 +34,14 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      state.selectedCompanyId = null;
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('selectedCompanyId');
+    },
+    setSelectedCompany: (state, action: PayloadAction<string>) => {
+      state.selectedCompanyId = action.payload;
+      localStorage.setItem('selectedCompanyId', action.payload);
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
@@ -55,5 +63,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, logout, setLoading, loadUserFromStorage } = authSlice.actions;
+export const { setCredentials, logout, setLoading, loadUserFromStorage, setSelectedCompany } = authSlice.actions;
 export default authSlice.reducer;

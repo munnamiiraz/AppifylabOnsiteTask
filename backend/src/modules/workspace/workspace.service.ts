@@ -9,13 +9,28 @@ export class WorkspaceService {
     return prisma.workspace.create({ data });
   }
 
-  static async list(companyId: string, userId: string) {
+  static async list(query: any, userId: string) {
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      company: { users: { some: { userId } } },
+    };
+
+    if (query.companyId) {
+      where.companyId = query.companyId;
+    }
+
     return prisma.workspace.findMany({
-      where: {
-        companyId,
-        company: { users: { some: { userId } } },
+      where,
+      include: { 
+        company: true,
+        _count: { select: { notes: true } } 
       },
-      include: { _count: { select: { notes: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
   }
 }

@@ -5,7 +5,7 @@ import { HistoryService } from './history.service';
 export class HistoryController {
   static async list(req: AuthRequest, res: Response) {
     try {
-      const histories = await HistoryService.list(req.params.noteId as string, req.userId!);
+      const histories = await HistoryService.list(req.params.noteId as string, req.userId!, req.query);
       res.status(200).json({
         success: true,
         status: 200,

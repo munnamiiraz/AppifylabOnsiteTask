@@ -3,12 +3,24 @@ import jwt from 'jsonwebtoken';
 import prisma from '../../config/database';
 
 export class AuthService {
-  static async register(data: { email: string; password: string; name: string }) {
+  static async register(data: { email: string; password: string; name: string; companyName?: string }) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    return prisma.user.create({
+    
+    const user = await prisma.user.create({
       data: { email: data.email, password: hashedPassword, name: data.name },
       select: { id: true, email: true, name: true },
     });
+
+    if (data.companyName) {
+      await prisma.company.create({
+        data: {
+          name: data.companyName,
+          users: { create: { userId: user.id, role: 'owner' } },
+        },
+      });
+    }
+
+    return user;
   }
 
   static async login(data: { email: string; password: string }) {
