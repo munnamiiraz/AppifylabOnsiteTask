@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies UserCompany[]
+  histories NoteHistory[]
+
+  @@index([email])
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      UserCompany[]
+  workspaces Workspace[]
+
+  @@index([name])
+}
+
+model UserCompany {
+  id        String   @id @default(uuid())
+  userId    String
+  companyId String
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  notes   Note[]
+
+  @@index([companyId])
+  @@index([name])
+}
+
+model Note {
+  id          String    @id @default(uuid())
+  title       String
+  content     String    @db.Text
+  type        NoteType  @default(PRIVATE)
+  isDraft     Boolean   @default(false)
+  workspaceId String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tags      NoteTag[]
+  votes     Vote[]
+  histories NoteHistory[]
+
+  @@index([workspaceId])
+  @@index([type, isDraft])
+  @@index([title])
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  notes NoteTag[]
+
+  @@index([name])
+}
+
+model NoteTag {
+  id     String @id @default(uuid())
+  noteId String
+  tagId  String
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, tagId])
+  @@index([noteId])
+  @@index([tagId])
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  noteId    String
+  userId    String?
+  ipAddress String?
+  voteType  VoteType
+  createdAt DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, userId])
+  @@unique([noteId, ipAddress])
+  @@index([noteId])
+}
+
+model NoteHistory {
+  id        String   @id @default(uuid())
+  noteId    String
+  title     String
+  content   String   @db.Text
+  userId    String
+  createdAt DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@index([createdAt])
+}
+
+enum NoteType {
+  PUBLIC
+  PRIVATE
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
