@@ -1,138 +1,49 @@
 import React, { useState, useEffect } from 'react';
-
-interface HistoryEntry {
-  id: number;
-  noteId: number;
-  title: string;
-  content: string;
-  updatedBy: string;
-  updatedAt: string;
-  changesSummary: string;
-}
-
-interface CurrentNote {
-  id: number;
-  title: string;
-  content: string;
-  workspaceId: number;
-  workspace: string;
-}
+import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+import { NoteHistory } from '../types';
 
 interface Props {
   noteId: string;
 }
 
 const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
-  const [currentNote, setCurrentNote] = useState<CurrentNote | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [selectedHistory, setSelectedHistory] = useState<HistoryEntry | null>(null);
-  const [showRestoreModal, setShowRestoreModal] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [comparing, setComparing] = useState<boolean>(false);
-
-  // Dummy data
-  const dummyCurrentNote: CurrentNote = {
-    id: 1,
-    title: 'API Design Best Practices - Updated',
-    content: 'This is the current version of the note with latest updates...\n\nKey principles:\n1. RESTful design\n2. Proper HTTP methods\n3. Clear error messages\n4. Versioning strategy',
-    workspaceId: 101,
-    workspace: 'Engineering'
-  };
-
-  const dummyHistory: HistoryEntry[] = [
-    {
-      id: 5,
-      noteId: 1,
-      title: 'API Design Best Practices - Updated',
-      content: 'This is the current version of the note with latest updates...\n\nKey principles:\n1. RESTful design\n2. Proper HTTP methods\n3. Clear error messages\n4. Versioning strategy',
-      updatedBy: 'John Doe',
-      updatedAt: '2024-03-15T14:30:00Z',
-      changesSummary: 'Added versioning strategy section'
-    },
-    {
-      id: 4,
-      noteId: 1,
-      title: 'API Design Best Practices',
-      content: 'This is an earlier version...\n\nKey principles:\n1. RESTful design\n2. Proper HTTP methods\n3. Clear error messages',
-      updatedBy: 'John Doe',
-      updatedAt: '2024-03-14T10:15:00Z',
-      changesSummary: 'Added error handling section'
-    },
-    {
-      id: 3,
-      noteId: 1,
-      title: 'API Design Best Practices',
-      content: 'This is an even earlier version...\n\nKey principles:\n1. RESTful design\n2. Proper HTTP methods',
-      updatedBy: 'Jane Smith',
-      updatedAt: '2024-03-13T16:45:00Z',
-      changesSummary: 'Added HTTP methods explanation'
-    },
-    {
-      id: 2,
-      noteId: 1,
-      title: 'API Design Best Practices',
-      content: 'Initial draft with basic content...\n\nKey principles:\n1. RESTful design',
-      updatedBy: 'Jane Smith',
-      updatedAt: '2024-03-12T09:00:00Z',
-      changesSummary: 'Initial version'
-    },
-    {
-      id: 1,
-      noteId: 1,
-      title: 'API Design',
-      content: 'Very first version - just started writing...',
-      updatedBy: 'John Doe',
-      updatedAt: '2024-03-11T14:20:00Z',
-      changesSummary: 'Created note'
-    }
-  ];
+  const [history, setHistory] = useState<NoteHistory[]>([]);
+  const [selectedHistory, setSelectedHistory] = useState<NoteHistory | null>(null);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchNoteAndHistory();
+    fetchHistory();
   }, [noteId]);
 
-  const fetchNoteAndHistory = async (): Promise<void> => {
+  const fetchHistory = async () => {
     setLoading(true);
     try {
-      // Replace with actual API calls
-      // const noteResponse = await fetch(`/api/notes/${noteId}`);
-      // const historyResponse = await fetch(`/api/notes/${noteId}/history`);
-      // const noteData = await noteResponse.json();
-      // const historyData = await historyResponse.json();
-      
-      setTimeout(() => {
-        setCurrentNote(dummyCurrentNote);
-        setHistory(dummyHistory);
-        setLoading(false);
-      }, 500);
+      const { data } = await api.get(`/history/${noteId}`);
+      setHistory(data.data || []);
     } catch (error) {
       console.error('Error fetching history:', error);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleRestore = async (historyEntry: HistoryEntry): Promise<void> => {
+  const handleRestore = async (historyId: string) => {
     try {
-      // Replace with actual API call
-      // await fetch(`/api/notes/${noteId}/restore`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ historyId: historyEntry.id })
-      // });
-      
-      setTimeout(() => {
-        alert('Note restored successfully!');
-        setShowRestoreModal(false);
-        fetchNoteAndHistory();
-      }, 500);
+      await api.post(`/history/restore/${historyId}`);
+      alert('Note restored successfully!');
+      setShowRestoreModal(false);
+      navigate(`/notes/edit/${noteId}`);
     } catch (error) {
       console.error('Error restoring note:', error);
+      alert('Failed to restore note');
     }
   };
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -141,7 +52,7 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
     });
   };
 
-  const formatRelativeTime = (dateString: string): string => {
+  const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -167,44 +78,7 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div 
-              onClick={() => window.location.href = '/dashboard'}
-              className="flex items-center space-x-2 cursor-pointer"
-            >
-              <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
-              <span className="text-xl font-bold text-gray-900">Workspace Notes</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => window.location.href = `/notes/${noteId}`}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium"
-              >
-                View Note
-              </button>
-              <button
-                onClick={() => window.location.href = `/notes/${noteId}/edit`}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium"
-              >
-                Edit Note
-              </button>
-              <button
-                onClick={() => window.location.href = '/workspaces'}
-                className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Back to Workspaces
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-3xl font-bold text-gray-900">Version History</h1>
@@ -212,12 +86,8 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
               {history.length} version{history.length !== 1 ? 's' : ''} • Last 7 days
             </span>
           </div>
-          <p className="text-gray-600">
-            {currentNote?.title} • {currentNote?.workspace}
-          </p>
         </div>
 
-        {/* Notice */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex">
             <svg className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -233,7 +103,6 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* History Timeline */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-4 border-b border-gray-200">
@@ -255,23 +124,17 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
                         <div className="flex items-center space-x-2">
                           {index === 0 && (
                             <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded">
-                              Current
+                              Latest
                             </span>
                           )}
                           <span className="text-xs text-gray-500">
-                            {formatRelativeTime(entry.updatedAt)}
+                            {formatRelativeTime(entry.createdAt)}
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm font-medium text-gray-900 mb-1">
-                        {entry.changesSummary}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        by {entry.updatedBy}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(entry.updatedAt)}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900 mb-1">{entry.title}</p>
+                      <p className="text-xs text-gray-600">by {entry.user.name}</p>
+                      <p className="text-xs text-gray-500 mt-1">{formatDate(entry.createdAt)}</p>
                     </div>
                   ))}
                 </div>
@@ -279,33 +142,28 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
             </div>
           </div>
 
-          {/* Preview Panel */}
           <div className="lg:col-span-2">
             {selectedHistory ? (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 mb-2">
-                        {selectedHistory.title}
-                      </h2>
+                      <h2 className="text-xl font-bold text-gray-900 mb-2">{selectedHistory.title}</h2>
                       <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        <span>Version from {formatDate(selectedHistory.updatedAt)}</span>
+                        <span>Version from {formatDate(selectedHistory.createdAt)}</span>
                         <span>•</span>
-                        <span>Updated by {selectedHistory.updatedBy}</span>
+                        <span>Updated by {selectedHistory.user.name}</span>
                       </div>
                     </div>
-                    {selectedHistory.id !== history[0].id && (
-                      <button
-                        onClick={() => setShowRestoreModal(true)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span>Restore This Version</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setShowRestoreModal(true)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Restore This Version</span>
+                    </button>
                   </div>
                 </div>
                 <div className="p-6">
@@ -329,7 +187,6 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
         </div>
       </main>
 
-      {/* Restore Confirmation Modal */}
       {showRestoreModal && selectedHistory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -339,10 +196,10 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
             </p>
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <p className="text-sm text-gray-700 mb-1">
-                <span className="font-medium">Version from:</span> {formatDate(selectedHistory.updatedAt)}
+                <span className="font-medium">Version from:</span> {formatDate(selectedHistory.createdAt)}
               </p>
               <p className="text-sm text-gray-700">
-                <span className="font-medium">Updated by:</span> {selectedHistory.updatedBy}
+                <span className="font-medium">Updated by:</span> {selectedHistory.user.name}
               </p>
             </div>
             <div className="flex space-x-3">
@@ -353,7 +210,7 @@ const NoteHistoryViewer: React.FC<Props> = ({ noteId }) => {
                 Cancel
               </button>
               <button
-                onClick={() => handleRestore(selectedHistory)}
+                onClick={() => handleRestore(selectedHistory.id)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
                 Restore Version

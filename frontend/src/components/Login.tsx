@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import axios from 'axios';
-import { setAuth } from '../store/authSlice';
+import { setCredentials } from '../store/slices/authSlice';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -34,7 +34,7 @@ const Login = () => {
       const { token, user } = response.data.data;
       
       if (token && user) {
-        dispatch(setAuth({ token, user }));
+        dispatch(setCredentials({ token, user }));
         navigate('/');
       } else {
         setError('Invalid response from server');

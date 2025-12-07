@@ -1,16 +1,22 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth';
 import { VoteService } from './vote.service';
+import prisma from '../../config/database';
 
 export class VoteController {
   static async vote(req: AuthRequest, res: Response) {
     try {
-      const vote = await VoteService.vote(req.body, req.userId, req.ip);
+      await VoteService.vote(req.body, req.userId, req.ip);
+      
+      const votes = await prisma.vote.findMany({ where: { noteId: req.body.noteId } });
+      const upvotes = votes.filter(v => v.voteType === 'UPVOTE').length;
+      const downvotes = votes.filter(v => v.voteType === 'DOWNVOTE').length;
+      
       res.status(200).json({
         success: true,
         status: 200,
         message: 'Vote recorded successfully',
-        data: vote,
+        data: { upvotes, downvotes },
         error: null,
       });
     } catch (error: any) {

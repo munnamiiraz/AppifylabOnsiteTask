@@ -8,6 +8,8 @@ import PrivateNotes from './pages/PrivateNotes';
 import PublicNotes from './pages/PublicNotes';
 import NoteForm from './pages/NoteForm';
 import NoteHistory from './pages/NoteHistory';
+import MyWorkspaces from './pages/MyWorkspaces';
+import NoteView from './pages/NoteView';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useSelector((state: RootState) => state.auth.token);
@@ -31,8 +33,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         
-        {/* Protected Routes - Private Notes (My Workspace) */}
-        <Route path="/" element={<PrivateRoute><Layout><PrivateNotes /></Layout></PrivateRoute>} />
+        {/* Protected Routes - Workspaces */}
+        <Route path="/" element={<PrivateRoute><Layout><MyWorkspaces /></Layout></PrivateRoute>} />
+        <Route path="/workspaces" element={<PrivateRoute><Layout><MyWorkspaces /></Layout></PrivateRoute>} />
         <Route path="/my-notes" element={<PrivateRoute><Layout><PrivateNotes /></Layout></PrivateRoute>} />
         
         {/* Protected Routes - Public Directory */}
@@ -42,6 +45,7 @@ export default function App() {
         <Route path="/notes/new" element={<PrivateRoute><Layout><NoteForm /></Layout></PrivateRoute>} />
         <Route path="/notes/edit/:id" element={<PrivateRoute><Layout><NoteForm /></Layout></PrivateRoute>} />
         <Route path="/notes/history/:id" element={<PrivateRoute><Layout><NoteHistory /></Layout></PrivateRoute>} />
+        <Route path="/notes/:id" element={<PrivateRoute><Layout><NoteView /></Layout></PrivateRoute>} />
         
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

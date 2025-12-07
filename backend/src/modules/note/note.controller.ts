@@ -26,7 +26,7 @@ export class NoteController {
 
   static async update(req: AuthRequest, res: Response) {
     try {
-      const note = await NoteService.update(req.params.id, req.body, req.userId!);
+      const note = await NoteService.update(req.params.id as string, req.body, req.userId!);
       res.status(200).json({
         success: true,
         status: 200,
@@ -47,7 +47,7 @@ export class NoteController {
 
   static async delete(req: AuthRequest, res: Response) {
     try {
-      await NoteService.delete(req.params.id, req.userId!);
+      await NoteService.delete(req.params.id as string, req.userId!);
       res.status(200).json({
         success: true,
         status: 200,
@@ -110,7 +110,7 @@ export class NoteController {
 
   static async getOne(req: Request, res: Response) {
     try {
-      const note = await NoteService.getOne(req.params.id);
+      const note = await NoteService.getOne(req.params.id as string);
       res.status(200).json({
         success: true,
         status: 200,

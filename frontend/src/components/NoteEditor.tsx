@@ -1,19 +1,8 @@
 import React, { useState, useEffect } from 'react';
-
-interface Workspace {
-  id: number;
-  name: string;
-}
-
-interface NoteData {
-  id?: number;
-  title: string;
-  content: string;
-  workspaceId: number;
-  tags: string[];
-  isPublic: boolean;
-  isDraft: boolean;
-}
+import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+import { Workspace } from '../types';
+import CreateWorkspace from './CreateWorkspace';
 
 interface Props {
   noteId?: string;
@@ -21,149 +10,97 @@ interface Props {
 }
 
 const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
-  const [note, setNote] = useState<NoteData>({
+  const [note, setNote] = useState({
     title: '',
     content: '',
-    workspaceId: 0,
-    tags: [],
-    isPublic: false,
+    workspaceId: '',
+    tags: [] as string[],
+    type: 'PRIVATE' as 'PUBLIC' | 'PRIVATE',
     isDraft: true
   });
-  const [tagInput, setTagInput] = useState<string>('');
+  const [tagInput, setTagInput] = useState('');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [showHistory, setShowHistory] = useState<boolean>(false);
-
-  // Dummy workspaces
-  const dummyWorkspaces: Workspace[] = [
-    { id: 101, name: 'Engineering' },
-    { id: 102, name: 'Product' },
-    { id: 103, name: 'Marketing' },
-    { id: 104, name: 'General' }
-  ];
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    setWorkspaces(dummyWorkspaces);
+    fetchWorkspaces();
     if (mode === 'edit' && noteId) {
       fetchNote();
-    } else {
-      // Set default workspace
-      setNote(prev => ({ ...prev, workspaceId: dummyWorkspaces[0].id }));
     }
   }, [noteId, mode]);
 
-  // Auto-save draft every 30 seconds
-  useEffect(() => {
-    if (note.title || note.content) {
-      const timer = setTimeout(() => {
-        saveDraft();
-      }, 30000);
-      return () => clearTimeout(timer);
+  const fetchWorkspaces = async () => {
+    try {
+      const { data } = await api.get('/workspaces');
+      setWorkspaces(data.data || []);
+      if (data.data?.length > 0 && !note.workspaceId) {
+        setNote(prev => ({ ...prev, workspaceId: data.data[0].id }));
+      }
+    } catch (error) {
+      console.error('Error fetching workspaces:', error);
     }
-  }, [note.title, note.content]);
+  };
 
-  const fetchNote = async (): Promise<void> => {
+  const fetchNote = async () => {
     setLoading(true);
     try {
-      // Replace with actual API call
-      // const response = await fetch(`/api/notes/${noteId}`);
-      // const data = await response.json();
-      // setNote(data);
-      
-      setTimeout(() => {
-        setNote({
-          id: 1,
-          title: 'Sample Note Title',
-          content: 'This is sample content...',
-          workspaceId: 101,
-          tags: ['sample', 'demo'],
-          isPublic: false,
-          isDraft: true
-        });
-        setLoading(false);
-      }, 500);
+      const { data } = await api.get(`/notes/${noteId}`);
+      const noteData = data.data;
+      setNote({
+        title: noteData.title,
+        content: noteData.content,
+        workspaceId: noteData.workspaceId,
+        tags: noteData.tags?.map((t: any) => t.tag.name) || [],
+        type: noteData.type,
+        isDraft: noteData.isDraft
+      });
     } catch (error) {
       console.error('Error fetching note:', error);
+    } finally {
       setLoading(false);
     }
   };
 
-  const saveDraft = async (): Promise<void> => {
-    if (!note.title && !note.content) return;
-    
-    setSaving(true);
-    try {
-      // Replace with actual API call
-      // await fetch('/api/notes/draft', {
-      //   method: mode === 'create' ? 'POST' : 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...note, isDraft: true })
-      // });
-      
-      setTimeout(() => {
-        setLastSaved(new Date());
-        setSaving(false);
-      }, 500);
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      setSaving(false);
-    }
-  };
-
-  const handlePublish = async (): Promise<void> => {
-    if (!note.title.trim()) {
-      alert('Please enter a title');
-      return;
-    }
-    if (!note.content.trim()) {
-      alert('Please enter content');
-      return;
-    }
-    if (!note.workspaceId) {
-      alert('Please select a workspace');
+  const handleSave = async (publish: boolean) => {
+    if (!note.title.trim() || !note.content.trim() || !note.workspaceId) {
+      alert('Please fill in all required fields');
       return;
     }
 
     setSaving(true);
     try {
-      // Replace with actual API call
-      // const response = await fetch('/api/notes', {
-      //   method: mode === 'create' ? 'POST' : 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...note, isDraft: false })
-      // });
-      // const data = await response.json();
-      
-      setTimeout(() => {
-        setSaving(false);
-        alert('Note published successfully!');
-        window.location.href = '/workspaces';
-      }, 500);
+      const payload = {
+        ...note,
+        isDraft: !publish
+      };
+
+      if (mode === 'create') {
+        await api.post('/notes', payload);
+      } else {
+        await api.put(`/notes/${noteId}`, payload);
+      }
+
+      navigate('/my-notes');
     } catch (error) {
-      console.error('Error publishing note:', error);
+      console.error('Error saving note:', error);
+      alert('Failed to save note');
+    } finally {
       setSaving(false);
     }
   };
 
-  const handleAddTag = (): void => {
+  const handleAddTag = () => {
     if (tagInput.trim() && !note.tags.includes(tagInput.trim())) {
       setNote({ ...note, tags: [...note.tags, tagInput.trim()] });
       setTagInput('');
     }
   };
 
-  const handleRemoveTag = (tagToRemove: string): void => {
+  const handleRemoveTag = (tagToRemove: string) => {
     setNote({ ...note, tags: note.tags.filter(tag => tag !== tagToRemove) });
-  };
-
-  const formatLastSaved = (): string => {
-    if (!lastSaved) return '';
-    const seconds = Math.floor((new Date().getTime() - lastSaved.getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    return `${Math.floor(seconds / 3600)}h ago`;
   };
 
   if (loading) {
@@ -179,79 +116,15 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div 
-              onClick={() => window.location.href = '/dashboard'}
-              className="flex items-center space-x-2 cursor-pointer"
-            >
-              <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
-              <span className="text-xl font-bold text-gray-900">Workspace Notes</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Draft Indicator */}
-              {note.isDraft && (
-                <div className="flex items-center space-x-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-sm font-medium text-yellow-800">Draft</span>
-                </div>
-              )}
-              
-              {/* Save Status */}
-              <div className="text-sm text-gray-600">
-                {saving ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Saving...
-                  </span>
-                ) : lastSaved ? (
-                  <span>Saved {formatLastSaved()}</span>
-                ) : null}
-              </div>
-
-              <button
-                onClick={() => window.location.href = '/workspaces'}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveDraft}
-                disabled={saving}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Save Draft
-              </button>
-              <button
-                onClick={handlePublish}
-                disabled={saving}
-                className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                {note.isDraft ? 'Publish' : 'Update'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          {/* Header */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               {mode === 'create' ? 'Create New Note' : 'Edit Note'}
             </h1>
             {mode === 'edit' && (
               <button
-                onClick={() => window.location.href = `/notes/${noteId}/history`}
+                onClick={() => navigate(`/notes/history/${noteId}`)}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,11 +135,8 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
             )}
           </div>
 
-          {/* Title Input */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Title *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
             <input
               type="text"
               value={note.title}
@@ -276,30 +146,33 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
             />
           </div>
 
-          {/* Workspace Selector */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Workspace *
-            </label>
-            <select
-              value={note.workspaceId}
-              onChange={(e) => setNote({ ...note, workspaceId: Number(e.target.value) })}
-              className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white cursor-pointer"
-            >
-              <option value={0}>Select a workspace</option>
-              {workspaces.map(workspace => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Workspace *</label>
+            <div className="flex gap-2">
+              <select
+                value={note.workspaceId}
+                onChange={(e) => setNote({ ...note, workspaceId: e.target.value })}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white cursor-pointer"
+              >
+                <option value="">Select a workspace</option>
+                {workspaces.map(workspace => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowCreateWorkspace(true)}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                + New
+              </button>
+            </div>
           </div>
 
-          {/* Content Editor */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Content *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Content *</label>
             <textarea
               value={note.content}
               onChange={(e) => setNote({ ...note, content: e.target.value })}
@@ -309,11 +182,8 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
             />
           </div>
 
-          {/* Tags Input */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tags
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
             <div className="flex gap-2 mb-3">
               <input
                 type="text"
@@ -333,15 +203,9 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
             {note.tags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {note.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium"
-                  >
+                  <span key={tag} className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
                     #{tag}
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-2 hover:text-blue-900"
-                    >
+                    <button onClick={() => handleRemoveTag(tag)} className="ml-2 hover:text-blue-900">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
@@ -352,13 +216,12 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
             )}
           </div>
 
-          {/* Visibility Toggle */}
           <div className="mb-6">
             <label className="flex items-center space-x-3 cursor-pointer">
               <input
                 type="checkbox"
-                checked={note.isPublic}
-                onChange={(e) => setNote({ ...note, isPublic: e.target.checked })}
+                checked={note.type === 'PUBLIC'}
+                onChange={(e) => setNote({ ...note, type: e.target.checked ? 'PUBLIC' : 'PRIVATE' })}
                 className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <div>
@@ -368,24 +231,23 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
             </label>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex justify-between items-center pt-6 border-t border-gray-200">
             <button
-              onClick={() => window.location.href = '/workspaces'}
+              onClick={() => navigate('/my-notes')}
               className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <div className="flex space-x-3">
               <button
-                onClick={saveDraft}
+                onClick={() => handleSave(false)}
                 disabled={saving}
                 className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Save as Draft
               </button>
               <button
-                onClick={handlePublish}
+                onClick={() => handleSave(true)}
                 disabled={saving}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
@@ -395,6 +257,16 @@ const NoteEditor: React.FC<Props> = ({ noteId, mode }) => {
           </div>
         </div>
       </main>
+
+      {showCreateWorkspace && (
+        <CreateWorkspace
+          onSuccess={() => {
+            setShowCreateWorkspace(false);
+            fetchWorkspaces();
+          }}
+          onCancel={() => setShowCreateWorkspace(false)}
+        />
+      )}
     </div>
   );
 };
